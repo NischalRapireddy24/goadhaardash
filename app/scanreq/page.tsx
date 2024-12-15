@@ -242,14 +242,14 @@ export default function ScanRequestsPage() {
           margin-top: 16px;
         }
         .scan-image {
-          width: 100%;
+          width: 50%;
           height: auto;
           border-radius: 8px;
           border: 2px solid #ddd;
         }
         .selected-scan-image {
-          width: 100%;
-          max-height: 400px;
+          width: 300px;
+          max-height: 300px;
           margin-bottom: 16px;
           border-radius: 8px;
           border: 3px solid #4caf50;

@@ -1,9 +1,8 @@
-export default function CattleCard({ id, name, goAdhaar, breed, image, onClick }) {
+export default function CattleCard({ goAdhaar, breed, imageUrls, onClick }) {
   return (
     <div className="cattle-card" onClick={onClick}>
-      <img src={image} alt={name} className="cattle-image" />
+      <img src={imageUrls.facePic} alt={goAdhaar} className="cattle-image" />
       <div className="cattle-details">
-        <h3>{name}</h3>
         <p>ID: {goAdhaar}</p>
         <p>Breed: {breed}</p>
       </div>
