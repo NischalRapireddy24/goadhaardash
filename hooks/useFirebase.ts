@@ -18,7 +18,7 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useState, useCallback } from 'react';
 
-import { db, storage } from '~/utils/firebase';
+import { db } from '~/utils/firebase';
 import { ImageUpload } from '../types';
 
 type FirebaseOperation<T> = (...args: any[]) => Promise<T>;
