@@ -41,33 +41,79 @@ export default function ScanRequestsPage() {
 
   const handleRequestSelect = async (request) => {
     setSelectedRequest(request);
-
+    console.log(request)
+  
     try {
-      // Fetch all farmers linked to the agent
-      const farmersQuery = query(
-        collection(db, 'farmers'),
-        where('agentId', '==', request.agentId)
-      );
-      const farmersSnapshot = await getDocs(farmersQuery);
-      const farmerIds = farmersSnapshot.docs.map((doc) => doc.id);
+      // If phoneNumber exists and is not empty
+      if (request.phoneNumber?.trim()) {
+        // Check if a farmer exists with this phone number
+        const farmerQuery = query(
+          collection(db, 'farmers'),
+          where('phoneNumber', '==', request.phoneNumber)
+        );
+        const farmerSnapshot = await getDocs(farmerQuery);
+  
+        if (!farmerSnapshot.empty) {
+          // Fetch farmer's cattle
+          const farmer = farmerSnapshot.docs[0];
+          const farmerId = farmer.id;
+  
+          const cattleQuery = query(
+            collection(db, 'cattle'),
+            where('farmerId', '==', farmerId)
+          );
+          const cattleSnapshot = await getDocs(cattleQuery);
+          const cattle = cattleSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+  
+          setAgentCattle(cattle);
+          return;
+        } else {
+          // If farmer does not exist
+          await updateDoc(doc(db, 'scan_requests', request.id), {
+            status: 'rejected',
+            timestamp: serverTimestamp(),
+          });
+          alert('No farmer found with the provided phone number. Request rejected.');
+          setSelectedRequest(null);
+          return;
+        }
+      }
+  
+      // If phoneNumber is missing or empty, fetch cattle under the agent
+      if (request.phoneNumber == ""){
 
-      // Fetch all cattle linked to those farmers
-      const cattleQuery = query(
-        collection(db, 'cattle'),
-        where('farmerId', 'in', farmerIds)
-      );
-      const cattleSnapshot = await getDocs(cattleQuery);
-      const cattle = cattleSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        const farmersQuery = query(
+          collection(db, 'farmers'),
+          where('agentId', '==', request.agentId)
+        );
+        const farmersSnapshot = await getDocs(farmersQuery);
+        const farmerIds = farmersSnapshot.docs.map((doc) => doc.id);
 
-      setAgentCattle(cattle);
+        // Fetch all cattle linked to those farmers
+        const cattleQuery = query(
+          collection(db, 'cattle'),
+          where('farmerId', 'in', farmerIds)
+        );
+        const cattleSnapshot = await getDocs(cattleQuery);
+        const cattle = cattleSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+    
+        setAgentCattle(cattle);
+        console.log(cattle)
+      }
+
     } catch (error) {
-      console.error('Error fetching agent cattle:', error);
+      console.error('Error fetching cattle data:', error);
       alert('Failed to fetch cattle data.');
+      setAgentCattle([]);
     }
   };
+  
 
   const handleCattleSelect = async (cattle) => {
     if (!selectedRequest) return;
@@ -160,9 +206,10 @@ export default function ScanRequestsPage() {
           <>
             <Card title="Scanned Image">
               <img
-                src={selectedRequest.scanImage}
+                src={selectedRequest.scanImage || '/fallback-image.png'}
                 alt="Scanned"
                 className="selected-scan-image"
+                onError={(e) => { e.target.src = '/fallback-image.png'; }}
               />
               <div className="button-container">
                 <Button
@@ -178,37 +225,21 @@ export default function ScanRequestsPage() {
               </div>
             </Card>
 
-            <h2>Select Matching Cattle:</h2>
-            {agentCattle.length > 0 ? (
-              agentCattle.map((cattle) => (
-                <CattleCard
-                  key={cattle.id}
-                  {...cattle}
-                  onClick={() => handleCattleSelect(cattle)}
-                />
-              ))
-            ) : (
-              <>
-                <p>No cattle found for this agent.</p>
-                <div className="search-container">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by goAdhaar"
-                  />
-                  <Button title="Search" onClick={handleSearchCattle} />
-                </div>
+            <h3>Farmer Number: {selectedRequest.phoneNumber || 'N/A'}</h3>
 
-                {searchResult && (
-                  <CattleCard
-                    key={searchResult.id}
-                    {...searchResult}
-                    onClick={() => handleCattleSelect(searchResult)}
-                  />
-                )}
-              </>
-            )}
+            <h2>Select Matching Cattle:</h2>
+                      {agentCattle.length > 0 ? (
+            agentCattle.map((cattle) => (
+              <CattleCard
+                key={cattle.id}
+                {...cattle}
+                onClick={() => handleCattleSelect(cattle)}
+              />
+            ))
+          ) : (
+            <p>No cattle found for this farmer or agent.</p>
+          )}
+
           </>
         ) : (
           <div>
@@ -217,9 +248,10 @@ export default function ScanRequestsPage() {
                 <Card key={request.id}>
                   <div onClick={() => handleRequestSelect(request)}>
                     <img
-                      src={request.scanImage}
+                      src={request.scanImage || '/fallback-image.png'}
                       alt="Scan Request"
                       className="scan-image"
+                      onError={(e) => { e.target.src = '/fallback-image.png'; }}
                     />
                     <p>{request.createdAt?.toDate().toLocaleString() || 'Unknown date'}</p>
                   </div>
@@ -247,6 +279,7 @@ export default function ScanRequestsPage() {
           border-radius: 8px;
           border: 2px solid #ddd;
         }
+
         .selected-scan-image {
           width: 300px;
           max-height: 300px;
@@ -257,31 +290,14 @@ export default function ScanRequestsPage() {
         .button-container {
           display: flex;
           justify-content: space-between;
-          gap: 12px;
-        }
-        .not-found-button {
-          background-color: #ff9800;
-          color: #fff;
-          font-weight: bold;
-        }
-        .reject-button {
-          background-color: #f44336
-;
-          color: #fff;
-          font-weight: bold;
-        }
-        .search-container {
           margin-top: 16px;
-          display: flex;
-          gap: 8px;
-          align-items: center;
         }
-        .search-container input {
+        .not-found-button,
+        .reject-button {
           flex: 1;
-          padding: 8px;
-          border: 2px solid #ccc;
-          border-radius: 4px;
+          margin: 0 8px;
         }
+          
       `}</style>
     </div>
   );
