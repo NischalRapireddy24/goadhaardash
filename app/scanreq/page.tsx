@@ -274,7 +274,7 @@ export default function ScanRequestsPage() {
           margin-top: 16px;
         }
         .scan-image {
-          width: 50%;
+          width: 300px;
           height: auto;
           border-radius: 8px;
           border: 2px solid #ddd;
