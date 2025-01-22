@@ -73,7 +73,7 @@ export default function ScanRequestsPage() {
         } else {
           // If farmer does not exist
           await updateDoc(doc(db, 'scan_requests', request.id), {
-            status: 'rejected',
+            status: 'no_number',
             timestamp: serverTimestamp(),
           });
           alert('No farmer found with the provided phone number. Request rejected.');
