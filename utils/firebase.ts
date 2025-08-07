@@ -2,12 +2,12 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyD9jHi-4KfD5pHBOKFVWayW1ba8stkC9GU",
-    authDomain: "gaadhaar-987dd.firebaseapp.com",
-    projectId: "gaadhaar-987dd",
-    storageBucket: "gaadhaar-987dd.appspot.com",
-    messagingSenderId: "202045537230",
-    appId: "1:202045537230:web:4c445a3b26e3686333099f"
+    apiKey: "AIzaSyC5UweP5t-_-mwcXUFc-YPTzIWVe-ar79o",  
+    authDomain: "godhaar-test.firebaseapp.com",  
+    projectId: "godhaar-test",  
+    storageBucket: "godhaar-test.firebasestorage.app",
+    messagingSenderId: "601461869022",
+    appId: "1:601461869022:web:178bd9f7ab77967279754f"
   };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
