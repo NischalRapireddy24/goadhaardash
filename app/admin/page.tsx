@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [customStats, setLocalCustomStats] = useState<{ [key: string]: CustomStats }>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const test = 'test'
 
   useEffect(() => {
     async function fetchData() {
