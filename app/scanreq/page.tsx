@@ -1,4 +1,5 @@
 'use client'
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { db } from '../../utils/firebase';
@@ -6,11 +7,12 @@ import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, serverTi
 import Header from '../../components/Header';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import CattleCard from '../../components/CattleCard';
 
 export default function ScanRequestsPage() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [allCattle, setAllCattle] = useState([]);
+  const [agentCattle, setAgentCattle] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const router = useRouter();
@@ -39,24 +41,79 @@ export default function ScanRequestsPage() {
 
   const handleRequestSelect = async (request) => {
     setSelectedRequest(request);
-    console.log(request);
-
+    console.log(request)
+  
     try {
-      // Fetch ALL cattle from database
-      const cattleQuery = query(collection(db, 'cattle'));
-      const cattleSnapshot = await getDocs(cattleQuery);
-      const cattle = cattleSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      // If phoneNumber exists and is not empty
+      if (request.phoneNumber?.trim()) {
+        // Check if a farmer exists with this phone number
+        const farmerQuery = query(
+          collection(db, 'farmers'),
+          where('phoneNumber', '==', request.phoneNumber)
+        );
+        const farmerSnapshot = await getDocs(farmerQuery);
+  
+        if (!farmerSnapshot.empty) {
+          // Fetch farmer's cattle
+          const farmer = farmerSnapshot.docs[0];
+          const farmerId = farmer.id;
+  
+          const cattleQuery = query(
+            collection(db, 'cattle'),
+            where('farmerId', '==', farmerId)
+          );
+          const cattleSnapshot = await getDocs(cattleQuery);
+          const cattle = cattleSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+  
+          setAgentCattle(cattle);
+          return;
+        } else {
+          // If farmer does not exist
+          await updateDoc(doc(db, 'scan_requests', request.id), {
+            status: 'no_number',
+            timestamp: serverTimestamp(),
+          });
+          alert('No farmer found with the provided phone number. Request rejected.');
+          setSelectedRequest(null);
+          return;
+        }
+      }
+  
+      // If phoneNumber is missing or empty, fetch cattle under the agent
+      if (request.phoneNumber == ""){
 
-      setAllCattle(cattle);
+        const farmersQuery = query(
+          collection(db, 'farmers'),
+          where('agentId', '==', request.agentId)
+        );
+        const farmersSnapshot = await getDocs(farmersQuery);
+        const farmerIds = farmersSnapshot.docs.map((doc) => doc.id);
+
+        // Fetch all cattle linked to those farmers
+        const cattleQuery = query(
+          collection(db, 'cattle'),
+          where('farmerId', 'in', farmerIds)
+        );
+        const cattleSnapshot = await getDocs(cattleQuery);
+        const cattle = cattleSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+    
+        setAgentCattle(cattle);
+        console.log(cattle)
+      }
+
     } catch (error) {
-      console.error('Error fetching all cattle:', error);
+      console.error('Error fetching cattle data:', error);
       alert('Failed to fetch cattle data.');
-      setAllCattle([]);
+      setAgentCattle([]);
     }
   };
+  
 
   const handleCattleSelect = async (cattle) => {
     if (!selectedRequest) return;
@@ -71,7 +128,7 @@ export default function ScanRequestsPage() {
       });
 
       setSelectedRequest(null);
-      setAllCattle([]);
+      setAgentCattle([]);
       setSearchQuery('');
       setSearchResult(null);
     } catch (error) {
@@ -90,7 +147,7 @@ export default function ScanRequestsPage() {
       });
 
       setSelectedRequest(null);
-      setAllCattle([]);
+      setAgentCattle([]);
     } catch (error) {
       console.error('Error rejecting request:', error);
       alert('Failed to reject the request.');
@@ -107,7 +164,7 @@ export default function ScanRequestsPage() {
       });
 
       setSelectedRequest(null);
-      setAllCattle([]);
+      setAgentCattle([]);
     } catch (error) {
       console.error('Error marking no cattle found:', error);
       alert('Failed to process the request.');
@@ -120,7 +177,7 @@ export default function ScanRequestsPage() {
     try {
       const searchQueryRef = query(
         collection(db, 'cattle'),
-        where('godhaar', '==', searchQuery)
+        where('goAdhaar', '==', searchQuery)
       );
       const searchSnapshot = await getDocs(searchQueryRef);
 
@@ -132,7 +189,7 @@ export default function ScanRequestsPage() {
         setSearchResult(result);
       } else {
         setSearchResult(null);
-        alert('No cattle found with the provided GoDhaar.');
+        alert('No cattle found with the provided goAdhaar.');
       }
     } catch (error) {
       console.error('Error searching for cattle:', error);
@@ -171,27 +228,18 @@ export default function ScanRequestsPage() {
             <h3>Farmer Number: {selectedRequest.phoneNumber || 'N/A'}</h3>
 
             <h2>Select Matching Cattle:</h2>
-            {allCattle.length > 0 ? (
-              allCattle.map((cattle) => (
-                <Card key={cattle.id}>
-                  <div onClick={() => handleCattleSelect(cattle)}>
-                    <img
-                      src={
-                        cattle.imageUrls?.leftPic ||
-                        cattle.imageUrls?.rightPic ||
-                        '/fallback-image.png'
-                      }
-                      alt="Cattle Side View"
-                      className="scan-image"
-                      onError={(e) => { e.target.src = '/fallback-image.png'; }}
-                    />
-                    <p>GoDhaar: {cattle.godhaar || 'N/A'}</p>
-                  </div>
-                </Card>
-              ))
-            ) : (
-              <p>No cattle found in the database.</p>
-            )}
+                      {agentCattle.length > 0 ? (
+            agentCattle.map((cattle) => (
+              <CattleCard
+                key={cattle.id}
+                {...cattle}
+                onClick={() => handleCattleSelect(cattle)}
+              />
+            ))
+          ) : (
+            <p>No cattle found for this farmer or agent.</p>
+          )}
+
           </>
         ) : (
           <div>
@@ -231,6 +279,7 @@ export default function ScanRequestsPage() {
           border-radius: 8px;
           border: 2px solid #ddd;
         }
+
         .selected-scan-image {
           width: 300px;
           max-height: 300px;
@@ -248,6 +297,7 @@ export default function ScanRequestsPage() {
           flex: 1;
           margin: 0 8px;
         }
+          
       `}</style>
     </div>
   );
